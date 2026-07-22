@@ -326,6 +326,203 @@ duration_test <- chisq.test(
 duration_test
 duration_test$expected
 ```
+### Question 7
+Does the probability of ranking Equity Market among the top two investment choices differ across respondents with different savings objectives?
+
+```{r}
+equity_objective <- finance_trends |> select(
+  "What are your savings objectives?",
+  Equity_Market
+) |>
+  rename( Savings_Objective = "What are your savings objectives?" ) |>
+  mutate(
+    equity_top2 = if_else(
+      Equity_Market <= 2,
+      "Yes",
+      "No"), 
+    Savings_Objective = factor(Savings_Objective),
+    equity_top2 = factor(equity_top2) )
+
+table(
+  equity_objective$Savings_Objective,
+  equity_objective$equity_top2)
+
+objective_summary <- equity_objective |>
+  group_by(
+    Savings_Objective,
+    equity_top2) |>
+  summarise(
+    n = n(),
+    .groups = "drop") |>
+  group_by(Savings_Objective) |>
+  mutate(
+     percent = n / sum(n) * 100)
+
+objective_summary
+  
+```
+```{r}
+ggplot(
+  objective_summary,
+  aes(
+    x = Savings_Objective,
+    y = percent,
+    fill = equity_top2)
+) + 
+  geom_col(position = "dodge") +
+  labs(
+    title = "Equity Market Top-Two Preference by Savings Objective",
+    x = "Savings Objective",
+    y = "Percent of Respondents",
+    fill = "Top Two Ranking") + theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+objective_test <- chisq.test(
+   table(
+     equity_objective$Savings_Objective,
+     equity_objective$equity_top2)
+)
+
+objective_test
+objective_test$expected
+```
+### Question 8
+Is respondents’ primary source of financial information associated with their preferred investment avenue?
+
+```{r}
+source_avenue <- finance_trends |> select(
+  Source,
+  Avenue) |>
+  
+  mutate(
+    Source = factor(Source),
+    Avenue = factor(Avenue))
+
+table(
+  source_avenue$Source,
+  source_avenue$Avenue)
+
+source_summary <- source_avenue |>
+  group_by(Source, Avenue) |>
+  summarise(
+    n = n(),
+    .groups = "drop"
+  ) |> 
+  group_by(Source) |>
+  mutate(
+    percent = n / sum(n) * 100)
+source_summary
+```
+
+```{r}
+ggplot(
+  source_summary,
+  aes(
+     x = Source,
+     y = percent,
+     fill = Avenue)
+) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Preferred Investment Avenue by Financial Information Source",
+    x = "Primary Information Source",
+    y = "Percent of Respondents",
+    fill = "Preferred Avenue") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+source_test <- chisq.test(
+  table(
+    source_avenue$Source,
+    source_avenue$Avenue))
+
+source_test
+source_test$expected
+```
+### Question 9
+Does investment monitoring frequency differ depending on whether respondents participate in the stock market?
+
+```{r}
+monitor_stock <- finance_trends |> select(
+  Stock_Marktet,
+  Invest_Monitor) |>
+  mutate(
+     Stock_Marktet = factor(Stock_Marktet),
+     Invest_Monitor = factor(Invest_Monitor))
+table(
+  monitor_stock$Stock_Marktet,
+  monitor_stock$Invest_Monitor)
+
+monitor_summary <- monitor_stock |>
+  group_by(Stock_Marktet, Invest_Monitor) |> summarise(
+     n = n(),
+     .groups = "drop" ) |>
+  group_by(Stock_Marktet) |>
+  mutate(
+    percent = n / sum(n) * 100)
+monitor_summary
+     
+```
+
+```{r}
+ggplot(
+  monitor_summary,
+  aes(
+    x = Stock_Marktet,
+    y = percent,
+    fill = Invest_Monitor)
+) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Investment Monitoring Frequency by Stock Market Participation",
+    x = "Participates in Stock Market",
+    y = "Percent of Respondents",
+    fill = "Monitoring Frequency") + theme_minimal()
+
+monitor_test <- chisq.test(
+  table(
+    monitor_stock$Stock_Marktet,
+    monitor_stock$Invest_Monitor)
+)
+
+monitor_test
+monitor_test$expected
+```
+### Final Analysis
+How are investor age, gender, expected return, and investment duration associated with preference for equity-market investments?
+
+```{r}
+equity_model <- finance_trends |> select(
+  age,
+  gender,
+  Expect,
+  Duration,
+  Equity_Market) |>
+  mutate(
+    equity_top2 = if_else(
+      Equity_Market <= 2, 1,0),
+    gender = factor(gender),
+    Expect = factor(Expect),
+    Duration = factor(Duration)
+    )
+
+summary(equity_model)
+```
+```{r}
+final_model <- glm(
+  equity_top2 ~
+    age +
+    gender +
+    Expect +
+    Duration,
+  data = equity_model,
+  family = binomial)
+
+summary(final_model)
+exp(coef(final_model))
+```
+
+
 
 
 
