@@ -1,0 +1,189 @@
+---
+title: "FinancialAnalysis"
+author: "Toan Truong Ho Nguyen"
+format: html
+---
+
+# Financial Analysis Final Project
+
+## The Key Question:
+
+#### How are investor age, gender, expected return, and investment duration associated with preference for equity-market investments?
+
+## Set Up
+
+Load the data set
+
+```{r}
+finance_trends <- read.csv("Finance_Trends.csv")
+finance_trends
+```
+
+### Question 1:
+
+Which investment avenues receive the strongest average rankings, and how much variation exists in each investment's ranking?
+
+```{r}
+library(tidyverse)
+finance_trends <- read_csv("Finance_Trends.csv")
+dim(finance_trends)
+```
+
+```{r}
+finance_trends |> select(
+  Mutual_Funds,
+  Equity_Market,
+  Debentures,
+  Government_Bonds,
+  Fixed_Deposits,
+  PPF,
+  Gold
+) |>
+  summary()
+```
+
+Ranking varibles:
+
+```{r}
+investment_rankings <- finance_trends |> select(
+   Mutual_Funds,
+   Equity_Market,
+   Debentures,
+   Government_Bonds,
+   Fixed_Deposits,
+   PPF,
+   Gold
+)
+glimpse(investment_rankings)
+```
+
+```{r}
+investment_rankings_long <- investment_rankings |> pivot_longer(
+  cols = everything(),
+  names_to = "investment",
+  values_to = "rank") |> mutate(investment = str_replace_all(investment, "_", " "))
+
+stopifnot(
+  all(investment_rankings_long$rank >= 1),
+  all(investment_rankings_long$rank <= 7),
+  !any(is.na(investment_rankings_long$rank))
+)
+
+ranking_summary <- investment_rankings_long |>
+  group_by(investment) |> summarise(
+    n = n(),
+    mean_rank = mean(rank),
+    median_rank = median(rank),
+    sd_rank = sd(rank),
+    .groups = "drop"
+  ) |> arrange(mean_rank)
+
+ranking_summary_display <- ranking_summary |> mutate(
+   mean_rank = round(mean_rank, 2),
+   median_rank = round(median_rank, 2),
+   sd_rank = round(sd_rank, 2))
+
+ranking_summary_display
+```
+
+```{r}
+ggplot(
+  data = ranking_summary,
+  mapping = aes(
+    x = reorder(investment, mean_rank),
+    y = mean_rank)
+) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(
+    breaks = 1:7,
+    limits = c(0, 7)) +
+  labs(
+    title = "Average Ranking of Investment Avenues",
+    subtitle = "Lower average rankings indicate stronger preferences",
+    x = "Investment Avenue",
+    y = "Average Ranking") +
+  theme_minimal()
+```
+
+### Question 2:
+Does the percentage of respondents who rank Equity Market among their top two investment choices differ between men and women?
+
+```{r}
+equity_gender <- finance_trends |>
+  select(
+    gender,
+    Equity_Market
+  ) |> mutate(
+    equity_top2 = if_else(
+      Equity_Market <= 2,
+      "Yes",
+      "No"),
+     gender = factor(gender),
+    equity_top2 = factor(equity_top2))
+
+table(
+  equity_gender$gender,
+  equity_gender$equity_top2)
+
+gender_summary <- equity_gender |>
+  group_by(gender, equity_top2) |>
+  summarise(
+    n = n(),
+    .groups = "drop") |> 
+  group_by(gender) |> mutate(
+     percent = n / sum(n) * 100 )
+
+gender_summary
+    
+```
+
+```{r}
+ggplot(
+  gender_summary,
+  aes(
+    x = gender,
+    y = percent,
+    fill = equity_top2)
+) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Equity Market Top-Two Preference by Gender",
+    x = "Gender",
+    y = "Percent of Respondents",
+    fill = "Top Two Ranking") + theme_minimal()
+
+gender_equity_test <- chisq.test(
+  table(
+    equity_gender$gender,
+     equity_gender$equity_top2)
+)
+
+gender_equity_test
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
