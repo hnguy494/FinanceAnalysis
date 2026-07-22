@@ -162,7 +162,170 @@ gender_equity_test <- chisq.test(
 gender_equity_test
 ```
 
+### Question 4:
+How does age relate to the probability of ranking Equity Market among the top two investment choices?
 
+```{r}
+equity_age <- finance_trends |> select(
+  age,
+  Equity_Market) |>
+  mutate(
+    equity_top2 = if_else(
+      Equity_Market <= 2,
+      "Yes",
+      "No"), 
+    equity_top2_binary = if_else(
+      equity_top2 == "Yes",
+      1,
+      0)
+  )
+
+summary(equity_age$age)
+  
+```
+```{r}
+age_summary <- equity_age |>
+  group_by(age, equity_top2) |>
+  summarise(
+    n = n(),
+    .groups = "drop") |>
+  group_by(age) |> mutate(
+    percent = n / sum(n) * 100 )
+
+age_yes <- age_summary |>
+  filter(equity_top2 == "Yes")
+
+ggplot(
+  age_yes,
+  aes(
+    x = age,
+    y = percent)
+) +
+  geom_point() +
+  geom_line() +
+  labs(
+    title = "Percentage Ranking Equity Market in the Top Two by Age",
+    x = "Age",
+    y = "Percent"
+  ) + theme_minimal()
+
+age_model <- glm(
+  equity_top2_binary ~ age,
+  data = equity_age,
+  family = binomial )
+
+summary(age_model)
+```
+
+### Question 5
+Are respondents with higher expected returns more likely to rank Equity Market among their top two investment choices?
+
+```{r}
+equity_expect <- finance_trends |> select(
+   Expect,
+   Equity_Market) |> mutate(
+     equity_top2 = if_else(
+       Equity_Market <= 2,
+       "Yes",
+       "No"),
+     Expect = factor(Expect),
+     equity_top2 = factor(equity_top2))
+
+table(
+  equity_expect$Expect,
+  equity_expect$equity_top2)
+
+expect_summary <- equity_expect |>
+  group_by(Expect, equity_top2) |>
+  summarise(
+    n = n(),
+    .groups = "drop") |>
+  group_by(Expect) |>
+   mutate(
+     percent = n / sum(n) * 100 )
+
+expect_summary
+```
+```{r}
+ggplot(
+  expect_summary,
+  aes(
+    x = Expect,
+    y = percent,
+    fill = equity_top2)
+) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Equity Market Top-Two Preference by Expected Return",
+    x = "Expected Return",
+    y = "Percent of Respondents",
+    fill = "Top Two Ranking"
+  ) + theme_minimal()
+
+expect_test <- chisq.test(
+  table(
+    equity_expect$Expect,
+    equity_expect$equity_top2)
+)
+
+expect_test
+```
+### Question 6
+Does the probability of ranking Equity Market among the top two investment choices differ across investment duration categories?
+
+```{r}
+equity_duration <- finance_trends |>  select(
+  Duration,
+  Equity_Market
+) |> mutate(
+   equity_top2 = if_else(
+     Equity_Market <= 2,
+     "Yes",
+     "No"), 
+   Duration = factor(Duration),
+   equity_top2 = factor(equity_top2)
+)
+
+table(
+  equity_duration$Duration,
+  equity_duration$equity_top2)
+
+duration_summary <- equity_duration |>
+  group_by(Duration, equity_top2) |>
+  summarise(
+   n = n(),
+   .groups = "drop") |>
+  group_by(Duration) |>
+  mutate(
+    percent = n / sum(n) * 100)
+
+duration_summary
+```
+```{r}
+ggplot(
+  duration_summary,
+  aes(
+    x = Duration,
+    y = percent,
+    fill = equity_top2)
+) +
+  geom_col(position = "dodge") +
+  labs(
+    title = "Equity Market Top-Two Preference by Investment Duration",
+    x = "Investment Duration",
+    y = "Percent of Respondents",
+    fill = "Top Two Ranking"
+  ) +  theme_minimal()
+
+duration_test <- chisq.test(
+  table(
+    equity_duration$Duration,
+    equity_duration$equity_top2)
+)
+
+duration_test
+duration_test$expected
+```
 
 
 
