@@ -4,10 +4,16 @@ author: "Toan Truong Ho Nguyen"
 format: html
 ---
 
-# Overview
+# Financial Analysis Final Project
+
+## The Key Question:
+
+#### How are investor age, gender, expected return, and investment duration associated with preference for equity-market investments?
+
+## Set Up
+
+
 ```{r}
 1 + 1
 
 ```
-
-# Another Fancy
