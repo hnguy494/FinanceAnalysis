@@ -4,11 +4,27 @@ author: "Toan Truong Ho Nguyen"
 format: html
 ---
 
-# Financial Analysis Final Project
+# Financial Analysis Final Project - Analysis of Investment Preferences Using the Finance Trends Dataset
+
+## Introduction
+
+Investing is a part of personal financial planning because it allows individuals to grow their wealth and work toward long-term financial goals. People have many investment options to choose from, including mutual funds, equity markets, fixed deposits, government bonds, and gold. However, investment preferences are not the same for everyone. Factors such as age, gender, expected return, and investment duration may influence how individuals choose among different investment opportunities. Understanding these factors can provide insight into investor behavior and help explain why different groups prefer different investment strategies.
+
+This project analyzes the Finance Trends dataset using R and the statistical methods learned in STAT 107. The dataset contains survey responses from 12,000 individuals and includes information about demographic characteristics, investment preferences, expected returns, investment duration, and other financial behaviors. The primary goal of this project is to investigate how age, gender, expected return, and investment duration are associated with preference for equity-market investments.
 
 ## The Key Question:
 
 #### How are investor age, gender, expected return, and investment duration associated with preference for equity-market investments?
+
+## Methods
+
+The response variable was whether respondents ranked the equity market among their top two investment choices. The original Equity_Market rankings (1–7) were converted into a binary variable indicating whether equity was ranked in the top two ("Yes") or not ("No").
+
+Percentages were calculated within each group to compare equity preference across gender, age, expected return, investment duration, savings objective, primary information source, and stock market participation. Grouped bar charts and a line graph were used to summarize these relationships.
+
+Chi-square tests of independence were used to test associations between categorical variables. Logistic regression was used to examine the relationship between age and the binary equity preference variable because age is quantitative. All hypothesis tests used a significance level of α = 0.05.
+
+The dataset contained 12,000 observations with no missing values, providing sufficient data for the analyses.
 
 ## Set Up
 
@@ -19,7 +35,7 @@ finance_trends <- read.csv("Finance_Trends.csv")
 finance_trends
 ```
 
-### Question 1:
+## Question 1:
 
 Which investment avenues receive the strongest average rankings, and how much variation exists in each investment's ranking?
 
@@ -63,12 +79,6 @@ investment_rankings_long <- investment_rankings |> pivot_longer(
   names_to = "investment",
   values_to = "rank") |> mutate(investment = str_replace_all(investment, "_", " "))
 
-stopifnot(
-  all(investment_rankings_long$rank >= 1),
-  all(investment_rankings_long$rank <= 7),
-  !any(is.na(investment_rankings_long$rank))
-)
-
 ranking_summary <- investment_rankings_long |>
   group_by(investment) |> summarise(
     n = n(),
@@ -78,12 +88,10 @@ ranking_summary <- investment_rankings_long |>
     .groups = "drop"
   ) |> arrange(mean_rank)
 
-ranking_summary_display <- ranking_summary |> mutate(
-   mean_rank = round(mean_rank, 2),
-   median_rank = round(median_rank, 2),
-   sd_rank = round(sd_rank, 2))
-
-ranking_summary_display
+ranking_summary |> mutate(
+  mean_rank = round(mean_rank,2),
+  median_rank = round(median_rank,2),
+  sd_rank = round(sd_rank,2))
 ```
 
 ```{r}
@@ -94,6 +102,10 @@ ggplot(
     y = mean_rank)
 ) +
   geom_col() +
+  geom_text(
+    aes(label = round(mean_rank, 2)),
+    hjust = -0.2,
+    size = 3.5) +
   coord_flip() +
   scale_y_continuous(
     breaks = 1:7,
@@ -106,37 +118,38 @@ ggplot(
   theme_minimal()
 ```
 
-### Question 2:
+### Question 1 Graphing Interpretation:
+
+"Average Ranking of Investment Avenues" summarizes the average rankings for each investment avenue. Because lower rankings indicate stronger preferences, Public Provident Fund (PPF) had the strongest average preference with a mean ranking of 2.02, followed by Mutual Funds (2.53). Equity Market ranked third with an average ranking of 3.46, while Gold (5.98) and Debentures (5.78) received the weakest average rankings. The relatively small standard deviations suggest that respondents were generally consistent in how they ranked the investment avenues.
+
+## Question 2:
+
 Does the percentage of respondents who rank Equity Market among their top two investment choices differ between men and women?
 
 ```{r}
-equity_gender <- finance_trends |>
-  select(
-    gender,
-    Equity_Market
-  ) |> mutate(
+equity_gender <- finance_trends |> select(
+  gender,
+  Equity_Market) |> mutate(
     equity_top2 = if_else(
       Equity_Market <= 2,
       "Yes",
       "No"),
-     gender = factor(gender),
-    equity_top2 = factor(equity_top2))
-
-table(
-  equity_gender$gender,
-  equity_gender$equity_top2)
+    gender = factor(gender),
+    equity_top2 = factor(
+      equity_top2,
+      levels = c("No", "Yes"))
+)
 
 gender_summary <- equity_gender |>
-  group_by(gender, equity_top2) |>
-  summarise(
+  group_by(gender, equity_top2) |> summarise(
     n = n(),
-    .groups = "drop") |> 
+    .groups = "drop") |>
   group_by(gender) |> mutate(
-     percent = n / sum(n) * 100 )
+    percent = n / sum(n) * 100)
 
-gender_summary
-    
+gender_summary |> mutate( percent = round(percent, 2))
 ```
+
 
 ```{r}
 ggplot(
@@ -146,23 +159,44 @@ ggplot(
     y = percent,
     fill = equity_top2)
 ) +
-  geom_col(position = "dodge") +
+  geom_col(
+    position = position_dodge(width = 0.9)
+    ) +
+  geom_text(
+    aes(label = paste0(round(percent, 1), "%")
+),
+position = position_dodge(width = 0.9),
+vjust = -0.3,
+size = 3.5
+) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, by = 25)
+) +
   labs(
     title = "Equity Market Top-Two Preference by Gender",
+    subtitle = "Percentages are calculated within each gender",
     x = "Gender",
     y = "Percent of Respondents",
-    fill = "Top Two Ranking") + theme_minimal()
+    fill = "Equity Ranked in Top Two") +
+  theme_minimal()
+gender_table <- table(
+  equity_gender$gender,
+  equity_gender$equity_top2)
 
-gender_equity_test <- chisq.test(
-  table(
-    equity_gender$gender,
-     equity_gender$equity_top2)
-)
-
+gender_equity_test <- chisq.test(gender_table)
 gender_equity_test
+gender_equity_test$expected
 ```
 
-### Question 4:
+### Question 2 Graphing Interpretation:
+
+Figure 2 compares the percentage of male and female who ranked Equity Market among their top two investment choices. Approximately 27.6% of female ranked Equity Market in their top two investment choices, compared with only 12.2% of male. Conversely, 72.4% of females and 87.8% of males did not rank Equity Market among their top two choices. These descriptive results suggest that female were more likely than male to prefer Equity Market investments.
+
+A chi-square test of independence was conducted to examine whether gender and equity-market preference were associated. The test was statistically significant, chi^2 = 451.98, p < 0.001, indicating strong evidence of an association between gender and ranking Equity Market among the top two investment choices. Because all expected cell counts were greater than 5, the assumptions of the chi-square test were satisfied.
+
+## Question 3:
+
 How does age relate to the probability of ranking Equity Market among the top two investment choices?
 
 ```{r}
@@ -183,6 +217,7 @@ equity_age <- finance_trends |> select(
 summary(equity_age$age)
   
 ```
+
 ```{r}
 age_summary <- equity_age |>
   group_by(age, equity_top2) |>
@@ -216,8 +251,14 @@ age_model <- glm(
 
 summary(age_model)
 ```
+### Interpretation
 
-### Question 5
+Figure 3 shows the percentage of respondents who ranked Equity Market among their top two investment choices for each age. Overall, the percentage generally decreases as age increases, although there are small fluctuations across individual ages. Younger respondents, particularly those between 18 and 21 years old, appear more likely to rank Equity Market among their top two investment choices than older respondents.
+
+A logistic regression model was used to further examine this relationship. The estimated coefficient for age was negative (beta = -0.1153) and statistically significant (p < 0.001). This result indicates that older respondents were less likely to rank Equity Market among their top two investment choices. 
+
+## Question 4:
+
 Are respondents with higher expected returns more likely to rank Equity Market among their top two investment choices?
 
 ```{r}
@@ -246,6 +287,7 @@ expect_summary <- equity_expect |>
 
 expect_summary
 ```
+
 ```{r}
 ggplot(
   expect_summary,
@@ -255,6 +297,15 @@ ggplot(
     fill = equity_top2)
 ) +
   geom_col(position = "dodge") +
+  geom_text(
+    aes(label = paste0(round(percent, 1), "%")),
+    position = position_dodge(width = 0.9),
+    vjust = -0.3,
+    size = 3.5) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 25)
+    ) +
   labs(
     title = "Equity Market Top-Two Preference by Expected Return",
     x = "Expected Return",
@@ -270,7 +321,15 @@ expect_test <- chisq.test(
 
 expect_test
 ```
-### Question 6
+### Question 4 Graphing Interpretation
+
+Figure 4 compares the percentage of respondents who ranked Equity Market among their top two investment choices across the three expected return categories. The percentages are similar for respondents expecting returns of 10%–20%, 20%–30%, and 30%–40%. Although there are small differences between the groups, the overall pattern suggests that expected return is not strongly related to whether respondents ranked Equity Market among their top two investment choices.
+
+A chi-square test of independence was conducted to examine the association between expected return and preference for Equity Market investments. The test was not statistically significant, chi-square = 3.60, p = 0.165. Because the p-value is greater than 0.05, we fail to reject the null hypothesis. Therefore, there is insufficient evidence to conclude that expected return is associated with ranking Equity Market among the top two investment choices.
+
+
+## Question 5:
+
 Does the probability of ranking Equity Market among the top two investment choices differ across investment duration categories?
 
 ```{r}
@@ -301,6 +360,7 @@ duration_summary <- equity_duration |>
 
 duration_summary
 ```
+
 ```{r}
 ggplot(
   duration_summary,
@@ -310,6 +370,13 @@ ggplot(
     fill = equity_top2)
 ) +
   geom_col(position = "dodge") +
+  geom_text( 
+    aes(label = paste0(round(percent, 1), "%")),
+    position = position_dodge(width = 0.9),
+    vjust = -0.3,
+    size = 3.5
+
+) +
   labs(
     title = "Equity Market Top-Two Preference by Investment Duration",
     x = "Investment Duration",
@@ -326,7 +393,14 @@ duration_test <- chisq.test(
 duration_test
 duration_test$expected
 ```
-### Question 7
+### Question 5 Graphing Interpretation:
+
+Figure 5 compares the percentage of respondents who ranked Equity Market among their top two investment choices across the four investment duration categories. The percentages are very similar across all duration groups, ranging from approximately 17.5% to 18.8%. Likewise, about 81% to 82% of respondents in every duration category did not rank Equity Market among their top two investment choices. These results suggest that investment duration is not strongly related to preference for Equity Market investments.
+
+A chi-square test of independence was conducted to examine the association between investment duration and preference for Equity Market investments. The test was not statistically significant, chi-square = 0.61, p = 0.894. Because the p-value is greater than 0.05, we fail to reject the null hypothesis. Therefore, there is insufficient evidence to conclude that investment duration is associated with ranking Equity Market among the top two investment choices.
+
+## Question 6:
+
 Does the probability of ranking Equity Market among the top two investment choices differ across respondents with different savings objectives?
 
 ```{r}
@@ -361,6 +435,7 @@ objective_summary <- equity_objective |>
 objective_summary
   
 ```
+
 ```{r}
 ggplot(
   objective_summary,
@@ -370,6 +445,11 @@ ggplot(
     fill = equity_top2)
 ) + 
   geom_col(position = "dodge") +
+  geom_text(
+    aes(label = paste0(round(percent, 1), "%")),
+    position = position_dodge(width = 0.9),
+    vjust = -0.3,
+    size = 3.5) +
   labs(
     title = "Equity Market Top-Two Preference by Savings Objective",
     x = "Savings Objective",
@@ -386,7 +466,15 @@ objective_test <- chisq.test(
 objective_test
 objective_test$expected
 ```
-### Question 8
+### Question 6 Graphing Interpretation:
+
+Figure 6 compares the percentage of respondents who ranked Equity Market among their top two investment choices across different savings objectives. The percentages vary substantially among the three groups. Respondents whose primary savings objective is Education were the most likely to rank Equity Market among their top two investment choices = 37.6%. In contrast, only 8.5%
+of respondents saving for Health Care ranked Equity Market among their top two choices, while 20.8% of those saving for Retirement selected Equity Market as a top-two investment.
+
+A chi-square test of independence was conducted to examine the association between savings objective and preference for Equity Market investments. The test was statistically significant, chi-square = 510.00, p < 0.001. Because the p-value is less than 0.05, we reject the null hypothesis. These results provide strong evidence that respondents' savings objectives are associated with whether they rank Equity Market among their top two investment choices.
+
+## Question 7:
+
 Is respondents’ primary source of financial information associated with their preferred investment avenue?
 
 ```{r}
@@ -418,11 +506,16 @@ source_summary
 ggplot(
   source_summary,
   aes(
-     x = Source,
+     x = Avenue,
      y = percent,
-     fill = Avenue)
+     fill = Source)
 ) +
   geom_col(position = "dodge") +
+  geom_text(
+    aes(label = paste0(round(percent,1), "%")),
+    position = position_dodge(width = 0.9),
+    vjust = -0.25,
+    size = 3) +
   labs(
     title = "Preferred Investment Avenue by Financial Information Source",
     x = "Primary Information Source",
@@ -439,7 +532,14 @@ source_test <- chisq.test(
 source_test
 source_test$expected
 ```
-### Question 9
+### Question 7 Graphing Interpretation:
+
+Figure 7 compares respondents' preferred investment avenues across different primary sources of financial information. The percentages for Equity, Fixed Deposits, Mutual Funds, and Public Provident Fund are relatively similar within each information source. Although there are small differences, no investment avenue consistently dominates across respondents who primarily rely on Financial Consultants, the Internet, Newspapers and Magazines, or Television.
+
+A chi-square test of independence was conducted to determine whether preferred investment avenue is associated with respondents' primary source of financial information. The test was not statistically significant, chi-square = 11.65, p = 0.234. Therefore, we fail to reject the null hypothesis and conclude that the preferred investment avenue does not appear to be associated with respondents' primary source of financial information.
+
+## Question 8:
+
 Does investment monitoring frequency differ depending on whether respondents participate in the stock market?
 
 ```{r}
@@ -473,6 +573,11 @@ ggplot(
     fill = Invest_Monitor)
 ) +
   geom_col(position = "dodge") +
+  geom_text(
+    aes(label = paste0(round(percent, 1), "%")),
+    position = position_dodge(width = 0.9),
+    vjust = -0.25,
+    size = 3) +
   labs(
     title = "Investment Monitoring Frequency by Stock Market Participation",
     x = "Participates in Stock Market",
@@ -488,7 +593,15 @@ monitor_test <- chisq.test(
 monitor_test
 monitor_test$expected
 ```
+
+### Question 8 Graphing Interpretation:
+
+Figure 8 compares investment monitoring frequency between respondents who participate in the stock market and those who do not. The percentages of respondents who monitor their investments daily, monthly, and weekly are nearly identical for both groups. Approximately one-third of respondents in each group selected each monitoring frequency, indicating very similar monitoring habits regardless of stock market participation.
+
+A chi-square test of independence was conducted to determine whether investment monitoring frequency is associated with stock market participation. The test was not statistically significant, chi-square = 0.66, p = 0.720. Therefore, we fail to reject the null hypothesis and conclude that investment monitoring frequency does not appear to differ between respondents who participate in the stock market and those who do not.
+
 ### Final Analysis
+
 How are investor age, gender, expected return, and investment duration associated with preference for equity-market investments?
 
 ```{r}
@@ -508,6 +621,7 @@ equity_model <- finance_trends |> select(
 
 summary(equity_model)
 ```
+
 ```{r}
 final_model <- glm(
   equity_top2 ~
@@ -522,19 +636,13 @@ summary(final_model)
 exp(coef(final_model))
 ```
 
+## Discussion:
 
+The results showed that age and gender were associated with ranking the equity market among the top two investment choices. Older respondents and male respondents were less likely to rank equity in their top two. Expected return and investment duration were not significantly associated with equity preference. Savings objective was associated with equity preference, while financial information source and investment monitoring frequency were not.
 
+These findings suggest that investor demographics and financial goals may have a greater influence on equity preference than expected return or investment duration. However, the results only show associations and do not prove that one factor causes another.
 
-
-
-
-
-
-
-
-
-
-
+One limitation is that the data are observational, so causal conclusions cannot be made. In addition, converting the equity ranking into a Yes/No variable reduced the amount of information available. Future studies could analyze the full ranking scale and include additional variables such as income, education, investment experience, or risk tolerance.
 
 
 
